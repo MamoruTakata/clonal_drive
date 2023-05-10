@@ -1,0 +1,755 @@
+---
+title: 'Inter-clonal competition over queen succession imposes a cost of parthenogenesis on termite colonies'
+output:
+  html_document: default
+  pdf_document: default
+---
+
+# packages
+```{r}
+install.packages("readxl")
+install.packages("ggplot2")
+install.packages("tidyverse")
+install.packages("dplyr")
+install.packages("lme4")
+install.packages("car")
+
+library(readxl)
+library(ggplot2)
+library(tidyverse)
+library(lme4)
+library(car)
+library(survival)
+library(scales)
+library(survminer)
+```
+
+# Distribution of the number of secondary queens per colony
+```{r}
+# data loading
+Fig2a <- read_excel("Dataset.xlsx", sheet="no. of royals") %>% 
+  as.data.frame(.)
+```
+
+## * sample size
+```{r}
+summary_Fig2a <- Fig2a %>% 
+  group_by(no_of_primary_queen) %>% 
+  summarize(number = n())
+summary_Fig2a
+```
+
+## * statistical analysis
+```{r}
+model1 <- glm(no_of_secondary_queen ~ as.factor(no_of_primary_queen), family = poisson, Fig2a)
+model2 <- glm(no_of_secondary_queen ~ 1, family = poisson, Fig2a)
+summary(model1)
+Anova(model1)
+anova(model1, model2, test="Chi")
+```
+
+## * figure
+```{r}
+xmin <- 0 
+xmax <- 320 
+xscale <- 50 
+binwidth <- 10 
+ymin <- 0 
+ymax <- 33 
+yscale <- 10 
+
+par(ps=18)
+
+Fig_2a <- 
+  ggplot(Fig2a, aes(x = no_of_secondary_queen, fill = as.factor(no_of_primary_queen))) +
+  geom_histogram(boundary = 0, 
+                 binwidth = binwidth, 
+                 closed ='left' , 
+                 alpha = 1, 
+                 color = "black", 
+                 position = "identity" 
+                 ) +
+  scale_fill_manual(values = c("white", "black")) + 
+  scale_x_continuous(breaks = seq(xmin, xmax, by = xscale), lim = c(xmin, xmax), expand = c(0,0)) + 
+  scale_y_continuous(breaks = seq(ymin, ymax, by = yscale), lim = c(ymin, ymax), expand = c(0,0)) + 
+  labs(y = "no. of colonies", 
+       x = "no. of secondary queens / colony",
+       title ="") +
+  theme_classic()
+Fig_2a
+
+# save figure
+# ggsave(file = "Figure 2a.pdf", plot = Fig_2a, dpi = 300, width = 140, height = 89, units = c("mm"))
+```
+
+# Relationship between total weight of secondary queens in a colony and the number of clone types
+```{r}
+# data loading
+Fig2bc <- read_excel("Dataset.xlsx", sheet="no. of clones in SQ population") %>% 
+  as.data.frame(.)
+```
+
+## * sample size
+```{r}
+summary_Fig2bc <- Fig2bc %>% 
+  group_by(no_of_primary_queen) %>% 
+  summarize(number = n())
+summary_Fig2bc
+```
+
+## * statistical analysis
+### * comparison of number of clones between colonies with and without PQ
+```{r}
+model_cdq1 <- glmer(cbind(no_of_clone_types,no_secondary_queens_genotyped-no_of_clone_types) ~ as.factor(no_of_primary_queen) + (1|colony), family = binomial, Fig2bc)
+model_cdq2 <- glmer(cbind(no_of_clone_types,no_secondary_queens_genotyped-no_of_clone_types) ~ 1 + (1|colony), family = binomial, Fig2bc)
+summary(model_cdq1)
+Anova(model_cdq1)
+anova(model_cdq1, model_cdq2, test="Chi")
+```
+
+### * relationship between colony size and number of clones in SQ population
+```{r}
+model_cd1 <- glmer(cbind(no_of_clone_types,no_secondary_queens_genotyped-no_of_clone_types) ~ total_weight_of_queen + (1|colony), family = binomial, Fig2bc)
+model_cd2 <- glmer(cbind(no_of_clone_types,no_secondary_queens_genotyped-no_of_clone_types) ~ 1 + (1|colony), family = binomial, Fig2bc)
+summary(model_cd1)
+Anova(model_cd1)
+anova(model_cd1, model_cd2, test="Chi")
+```
+
+## * figure
+```{r}
+Fig_2b <- 
+  ggplot(Fig2bc, aes(y = no_of_clone_types, 
+                     x = total_weight_of_queen, 
+                     fill = as.factor(no_of_primary_queen))) +
+  stat_function(fun = function(x){(1/(1+exp(-(summary(model_cd1)[[10]][1] + summary(model_cd1)[[10]][2]*x))))*20}, color = "black") +
+  geom_point(size = 2, stroke = 1, shape=21) +
+  scale_fill_manual(values = c("white", "black")) +
+  scale_y_continuous(breaks=seq(0,20,by=5),limits=c(0,20),expand=c(0,0)) +
+  scale_x_continuous(breaks=seq(0,3000,by=200),limits=c(0,1100),expand=c(0,0)) +
+  theme_classic() +
+  theme(legend.justification = c(1, 1),　
+        legend.text = element_text(size=8), 
+        legend.title = element_text(size=8), 
+        axis.title.x = element_text(size=8), 
+        axis.title.y = element_text(vjust = 0.5,angle=90,size=8), 
+        axis.text.x = element_text(size=8,color="black"), 
+        axis.text.y = element_text(size=8,color="black"),
+        axis.ticks.x = element_line(size = 0.5), 
+        axis.line = element_line(size = 0.5, 
+                                linetype = "solid", 
+                                lineend = "round")
+        ) +
+  labs(y = "no. of clone groups", 
+       x = "total weight of queens (mg)",
+       title ="")
+Fig_2b
+
+# save data
+# ggsave(file = "Figure 2b.pdf", plot = Fig_2b, dpi = 300, width = 140, height = 89, units = c("mm"))
+```
+
+# Relationship between colony size and the proportion of the most dominant clone
+## * statistical analysis
+### * comparison of the proportion of the most dominant clone between colonies with and without PQ
+```{r}
+model_cdq1 <- glmer(cbind(no_of_individuals_of_the_most_dominate_clone_type,no_secondary_queens_genotyped-no_of_individuals_of_the_most_dominate_clone_type) ~ total_weight_of_queen + (1|colony), family = binomial, Fig2bc)
+model_cdq2 <- glmer(cbind(no_of_individuals_of_the_most_dominate_clone_type,no_secondary_queens_genotyped-no_of_individuals_of_the_most_dominate_clone_type) ~ 1 + (1|colony), family = binomial, Fig2bc)
+summary(model_cdq1)
+Anova(model_cdq1)
+anova(model_cdq1, model_cdq2, test="Chi")
+```
+
+### * relationship between colony size and the proportion of the most dominant clone in SQ population
+```{r}
+model_cd1 <- glmer(cbind(no_of_individuals_of_the_most_dominate_clone_type,no_secondary_queens_genotyped-no_of_individuals_of_the_most_dominate_clone_type) ~ total_weight_of_queen + (1|colony), family = binomial, Fig2bc)
+model_cd2 <- glmer(cbind(no_of_individuals_of_the_most_dominate_clone_type,no_secondary_queens_genotyped-no_of_individuals_of_the_most_dominate_clone_type) ~ 1 + (1|colony), family = binomial, Fig2bc)
+summary(model_cd1)
+Anova(model_cd1)
+anova(model_cd1, model_cd2, test="Chi")
+```
+
+## * figure
+```{r}
+Fig_2c <- 
+  ggplot(Fig2bc, aes(y = percent_of_the_most_domonate_clone_type/100, 
+                     x = total_weight_of_queen, 
+                     color = as.factor(no_of_primary_queen), 
+                     fill = as.factor(no_of_primary_queen))) +
+  stat_function(fun = function(x){1/(1+exp(-(summary(model1)[[10]][1] + summary(model1)[[10]][2]*x)))}, color = "black") +
+  geom_point(size = 2, stroke = 1, shape=21) +
+  scale_color_manual(values = c("black", "black")) +
+  scale_fill_manual(values = c("white", "black")) +
+  scale_y_continuous(breaks=seq(0,1,by=0.25),limits=c(0,1.1),expand=c(0,0)) +
+  scale_x_continuous(breaks=seq(0,3000,by=200),limits=c(0,1100),expand=c(0,0)) +
+  theme_classic() +
+  theme(#legend.position = c(1, 1), #レジェンド(横についてるやつ)を上詰め(1)、右詰め(1)にする "bottom"
+        legend.justification = c(1, 1),　#レジェンドをちょっと内側に
+        legend.text = element_text(size=8), #レジェンドの内容の文字サイズを変更
+        legend.title = element_text(size=8), #レジェンドのタイトルサイズを変更
+        axis.title.x = element_text(size=8), #x軸タイトルを上詰め(0)、黒色、サイズ１４で
+        axis.title.y = element_text(vjust = 0.5,angle=90,size=8), #vjustで上下の位置調整、英語の場合はangle = 90で
+        axis.text.x = element_text(size=8,color="black"), #x軸の目盛りに対応した文字サイズを12で
+        axis.text.y = element_text(size=8,color="black"),
+        axis.ticks.x = element_line(size = 0.5), #x軸の目盛り線をゼロにして消す
+        axis.line = element_line(size = 0.5, #軸の線を0.5の太さで
+                                linetype = "solid", #線のタイプは実線
+                                lineend = "round") #軸の線の終わりは整数値で丸める
+        ) +
+  labs(y = "proportion of the most dominant clone group", 
+       x = "total weight of queens (mg)",
+       title ="")
+Fig_2c
+
+# save figure
+# ggsave(file = "Figure 2c.pdf", plot = Fig_2c, dpi = 300, width = 140, height = 89, units = c("mm"))
+```
+
+# Heterozygosity of Males and females of pre-founding population
+```{r}
+# loading data
+Fig3 <- read_excel("Dataset.xlsx", sheet="genotype of alates") %>% 
+  as.data.frame(.) 
+Fig3a <- Fig3 %>% 
+  filter(stage == "pre_founding")
+Fig3a_male <- Fig3a %>% 
+  filter(sex == "Male") %>% 
+  mutate(loci = if_else(heterozygosity <= 0, "homo", "hetero"))
+Fig3a_female <- Fig3a %>% 
+  filter(sex == "Female")
+```
+
+## * sample size
+```{r}
+summary_Fig3 <- Fig3 %>% 
+  group_by(sex, stage, parthenogenesis) %>% 
+  summarize(number = n())
+summary_Fig3
+
+summary_Fig3a <- Fig3a %>% 
+  group_by(sex) %>% 
+  summarize(number = n())
+summary_Fig3a
+```
+
+## * statistical analysis
+### * comparison of the frequency of asexual females between pre- and post-foundation population
+```{r}
+summary_data <- summary_Fig3 %>% 
+  filter(sex == "Female") %>% 
+  pivot_wider(., names_from = "parthenogenesis", values_from = "number") 
+fisher_data <- matrix(c(summary_data$sexual, summary_data$asexual), ncol=2, nrow=2, byrow=F)
+fisher.test(fisher_data)
+```
+
+### * comparison of head width in males in pre-foundation population
+```{r}
+model_freqaf1 <- glm(head_width ~ loci, family = gaussian, Fig3a_male)
+model_freqaf2 <- glm(head_width ~ 1, family = gaussian, Fig3a_male)
+summary(model_freqaf1)
+Anova(model_freqaf1)
+anova(model_freqaf1, model_freqaf2, test="Chi")
+```
+
+## * figure
+```{r}
+# list
+heterozygosity <- c("0","0.125","0.25","0.375","0.5","0.625","0.75","0.875","1")
+list <- data.frame(heterozygosity) %>% 
+  mutate(heterozygosity = as.factor(heterozygosity))
+
+# male
+summary_Fig3a_male_raw <- Fig3a_male %>% 
+  group_by(heterozygosity) %>% 
+  summarize(number = n()) %>% 
+  mutate(heterozygosity = as.factor(heterozygosity))
+summary_Fig3a_male <- list %>% 
+  left_join(summary_Fig3a_male_raw, by="heterozygosity")
+  
+Fig_3a_male <- 
+  ggplot(summary_Fig3a_male, aes(y = number,
+                                 x = as.factor(heterozygosity)
+                                 )) +
+  geom_bar(stat = "identity", color="black") + 
+  scale_y_continuous(breaks=seq(0,100,by=10),limits=c(0,50)) + 
+  labs(y = "no. of individuals", 
+       x = "heterozygosity",
+       title ="males of pre-founding population") +
+  theme_classic()
+Fig_3a_male
+
+
+# female
+summary_Fig3a_female_raw <- Fig3a_female %>% 
+  group_by(heterozygosity) %>% 
+  summarize(number = n()) %>% 
+  mutate(heterozygosity = as.factor(heterozygosity))
+summary_Fig3a_female <- list %>% 
+  left_join(summary_Fig3a_female_raw)
+
+Fig_3a_female <- 
+  ggplot(summary_Fig3a_female, aes(y = number,
+                                   x = as.factor(heterozygosity)
+                                   )) +
+  geom_bar(stat = "identity", color="black") + 
+  scale_y_continuous(breaks=seq(0,100,by=10),limits=c(0,50)) + 
+  labs(y = "no. of individuals", 
+       x = "heterozygosity",
+       title ="females of pre-founding population") +
+  theme_classic()
+Fig_3a_female
+
+# save data
+# ggsave(file = "Figure 3a male.pdf", plot = Fig_3a_male, dpi = 300, width = 140, height = 89, units = c("mm"))
+# ggsave(file = "Figure 3a female.pdf", plot = Fig_3a_female, dpi = 300, width = 140, height = 89, units = c("mm"))
+```
+
+# Heterozygosity of Males and females of post-founding population
+```{r}
+# data loading
+Fig3b <- read_excel("Dataset.xlsx", sheet="genotype of alates") %>% 
+  as.data.frame(.) %>% 
+  filter(stage == "post_founding")
+Fig3b_male <- Fig3b %>% 
+  filter(sex == "Male")
+Fig3b_female <- Fig3b %>% 
+  filter(sex == "Female")
+```
+
+## * sample size
+```{r}
+summary_Fig3b <- Fig3b %>% 
+  group_by(sex) %>% 
+  summarize(number = n())
+summary_Fig3b
+```
+
+## * figure
+```{r}
+# male
+summary_Fig3b_male_raw <- Fig3b_male %>% 
+  group_by(heterozygosity) %>% 
+  summarize(number = n()) %>% 
+  mutate(heterozygosity = as.factor(heterozygosity))
+summary_Fig3b_male <- list %>% 
+  left_join(summary_Fig3b_male_raw, by="heterozygosity")
+  
+Fig_3b_male <- 
+  ggplot(summary_Fig3b_male, aes(y = number,
+                                 x = as.factor(heterozygosity)
+                                 )) +
+  geom_bar(stat = "identity", color="black") + 
+  scale_y_continuous(breaks=seq(0,100,by=10),limits=c(0,50)) + 
+  labs(y = "no. of individuals", 
+       x = "heterozygosity",
+       title ="males of pre-founding population") +
+  theme_classic()
+Fig_3b_male
+
+
+# female
+summary_Fig3b_female_raw <- Fig3b_female %>% 
+  group_by(heterozygosity) %>% 
+  summarize(number = n()) %>% 
+  mutate(heterozygosity = as.factor(heterozygosity))
+summary_Fig3b_female <- list %>% 
+  left_join(summary_Fig3b_female_raw)
+
+Fig_3b_female <- 
+  ggplot(summary_Fig3b_female, aes(y = number,
+                                   x = as.factor(heterozygosity)
+                                   )) +
+  geom_bar(stat = "identity", color="black") + 
+  scale_y_continuous(breaks=seq(0,100,by=10),limits=c(0,50)) + 
+  labs(y = "no. of individuals", 
+       x = "heterozygosity",
+       title ="females of pre-founding population") +
+  theme_classic()
+Fig_3b_female
+
+# save figure
+# ggsave(file = "Figure 3b male.pdf", plot = Fig_3b_male, dpi = 300, width = 140, height = 89, units = c("mm"))
+# ggsave(file = "Figure 3b female.pdf", plot = Fig_3b_female, dpi = 300, width = 140, height = 89, units = c("mm"))
+```
+
+# Comparisons of head widths of pre- and post-foundation individuals for both sexes
+```{r}
+# data loading
+Fig4ab <- read_excel("Dataset.xlsx", sheet="genotype of alates") %>% 
+  as.data.frame(.) %>% 
+  mutate(category = paste(sex, stage, sep="_"))
+Fig4ab_male <- Fig4ab %>% 
+  filter(sex == "Male")
+Fig4ab_female <- Fig4ab %>% 
+  filter(sex == "Female")
+```
+
+## * sample size
+```{r}
+summary_Fig4a <- Fig4ab %>% 
+  group_by(category) %>% 
+  summarize(number = n())
+summary_Fig4a
+```
+
+## * statistical analysis
+### * detection of sex ratio bias
+```{r}
+# whole data
+chisq.test(c(43,111), p=c(1/2,1/2))
+
+# after removing parthenogenetically-produced females
+chisq.test(c(43,72.7), p=c(1/2,1/2))
+```
+
+### * comparison of head width between pre- and post-foundation population in males
+```{r}
+model_hm1 <- glm(head_width ~ stage, family = gaussian, Fig4ab_male)
+model_hm2 <- glm(head_width ~ 1, family = gaussian, Fig4ab_male)
+summary(model_hm1)
+Anova(model_hm1)
+anova(model_hm1, model_hm2, test="Chi")
+```
+
+### * comparison of head width between pre- and post-foundation population in females
+```{r}
+model_hf1 <- glm(head_width ~ stage, family = gaussian, Fig4ab_female)
+model_hf2 <- glm(head_width ~ 1, family = gaussian, Fig4ab_female)
+summary(model_hf1)
+Anova(model_hf1)
+anova(model_hf1, model_hf2, test="Chi")
+```
+
+## * figure
+```{r}
+Fig4ab$category <- factor(Fig4ab$category, levels=c("Male_pre_founding","Male_post_founding","Female_pre_founding","Female_post_founding"))
+
+Fig_4a <-
+ggplot(Fig4ab, aes(y = head_width, x = factor(category))) + 
+  geom_boxplot(width=0.6) + 
+  #scale_y_continuous(breaks=seq(0,2,by=0.05),limits=c(0.85,1.05)) +
+  labs(y = "head width (mm)", 
+       x = "",
+       title ="") +
+  theme_classic()
+Fig_4a
+
+# save figure
+# ggsave(file = "Figure 4a.pdf", plot = Fig_4a, dpi = 300, width = 140, height = 89, units = c("mm"))
+```
+
+# Comparisons of head widths between sexual and asexual females in pre-founding population
+```{r}
+# data loading
+Fig4b <- Fig4ab_female %>% 
+  mutate(het = if_else(heterozygosity > 0, "sexual", "asexual")) %>% 
+  filter(stage == "pre_founding")
+```
+
+## * sample size
+```{r}
+summary_Fig4b <- Fig4b %>% 
+  group_by(het) %>% 
+  summarize(number = n())
+summary_Fig4b
+```
+
+## * statistical analysis
+```{r}
+model_hsa1 <- glm(head_width ~ het, family = gaussian, Fig4b)
+model_hsa2 <- glm(head_width ~ 1, family = gaussian, Fig4b)
+summary(model_hsa1)
+Anova(model_hsa1)
+anova(model_hsa1, model_hsa2, test="Chi")
+```
+
+## * figure
+```{r}
+Fig4b$het <- factor(Fig4b$het, levels=c("sexual","asexual"))
+
+Fig_4b <-
+ggplot(Fig4b, aes(y = head_width, x = factor(het))) + 
+  geom_boxplot(#outlier.shape = NA, 
+               width=0.6 
+               ) + 
+  scale_y_continuous(breaks=seq(0,2,by=0.05),limits=c(0.79,1.06)) +
+  labs(y = "head width (mm)", 
+       x = "",
+       title ="") +
+  theme_classic()
+Fig_4b
+
+# save figure
+# ggsave(file = "Figure 4b.pdf", plot = Fig_4b, dpi = 300, width = 140, height = 89, units = c("mm"))
+```
+
+# Comparison of body weights between sexual and asexual alates collected from three natal colonies
+```{r}
+# data loading
+Fig4c <- read_excel("Dataset.xlsx", sheet="survivership of alates") %>% 
+  as.data.frame(.) %>% 
+  mutate(category = paste(colony, parthenogenesis, sep="_"))
+```
+
+## * sample size
+```{r}
+summary_Fig4c <- Fig4c %>% 
+  group_by(colony, sex, parthenogenesis) %>% 
+  summarize(number = n())
+summary_Fig4c
+```
+
+## * statistical analysis
+### * comparison of body weights between sexual and asexual alates (whole data)
+```{r}
+model_bww1 <- glmer(weight ~ parthenogenesis + (1|colony), family = gaussian, Fig4c_female_ABC)
+model_bww2 <- glmer(weight ~ 1 + (1|colony), family = gaussian, Fig4c_female_ABC)
+summary(model_bww1)
+Anova(model_bww1)
+anova(model_bww1, model_bww2, test="Chi")
+```
+
+### * comparison of body weights between sexual and asexual alates in colony A
+```{r}
+model_bwa1 <- glm(weight ~ parthenogenesis, family = gaussian, Fig4c_female_A)
+model_bwa2 <- glm(weight ~ 1, family = gaussian, Fig4c_female_A)
+summary(model_bwa1)
+Anova(model_bwa1)
+anova(model_bwa1, model_bwa2, test="Chi")
+```
+
+### * comparison of body weights between sexual and asexual alates in colony B
+```{r}
+model_bwb1 <- glm(weight ~ parthenogenesis, family = gaussian, Fig4c_female_B)
+model_bwb2 <- glm(weight ~ 1, family = gaussian, Fig4c_female_B)
+summary(model_bwb1)
+Anova(model_bwb1)
+anova(model_bwb1, model_bwb2, test="Chi")
+```
+
+### * comparison of body weights between sexual and asexual alates in colony C
+```{r}
+model_bwc1 <- glm(weight ~ parthenogenesis, family = gaussian, Fig4c_female_C)
+model_bwc2 <- glm(weight ~ 1, family = gaussian, Fig4c_female_C)
+summary(model_bwc1)
+Anova(model_bwc1)
+anova(model_bwc1, model_bwc2, test="Chi")
+```
+
+## * figure
+```{r}
+Fig4c$category <- factor(Fig4c$category, levels=c("A_sexual","A_asexual","B_sexual","B_asexual","C_sexual","C_asexual"))
+
+Fig4c_female <- Fig4c %>% 
+  filter(sex == "Female")
+Fig4c_female_ABC <- Fig4c_female %>% 
+  filter(str_detect(colony, "A|B|C"))
+Fig4c_female_A <- Fig4c_female %>% 
+  filter(colony == "A")
+Fig4c_female_B <- Fig4c_female %>% 
+  filter(colony == "B")
+Fig4c_female_C <- Fig4c_female %>% 
+  filter(colony == "C")
+
+Fig_4c <-
+ggplot(Fig4c_female_ABC, aes(y = weight, x = factor(category))) + 
+  geom_boxplot(width=0.6) + 
+  scale_y_continuous(breaks=seq(0,10,by=0.2),limits=c(2.1,3.7)) +
+  labs(y = "freash weight of alates (mg)", 
+       x = "",
+       title ="") +
+  theme_classic()
+Fig_4c
+
+# save figure
+# ggsave(file = "Figure 4c.pdf", plot = Fig_4c, dpi = 300, width = 140, height = 89, units = c("mm"))
+```
+
+# Comparison of survival of males, sexual females, and asexual females
+```{r}
+# data loading
+Fig4d <- read_excel("Dataset.xlsx", sheet="survivership of alates") %>% 
+  as.data.frame(.)
+Fig4d_male <- Fig4d %>% 
+  filter(sex == "Male") %>%
+  mutate(category = sex)
+Fig4d_female <- Fig4d %>% 
+  filter(sex == "Female") %>% 
+  mutate(category = paste(sex, parthenogenesis, sep="_"))
+Fig4d <- rbind(Fig4d_male, Fig4d_female) %>% 
+  filter(treatment == "control")
+Fig4d_sexual_asexual <- Fig4d %>% 
+  filter(!category == "Male")
+Fig4d_male_sexual <- Fig4d %>% 
+  filter(!category == "Female_asexual")
+Fig4d_male_asexual <- Fig4d %>% 
+  filter(!category == "Female_sexual")
+
+Fig4d_t <- rbind(Fig4d_male, Fig4d_female) %>% 
+  filter(treatment == "10^5")
+Fig4d_t_sexual_asexual <- Fig4d_t %>% 
+  filter(!category == "Male")
+Fig4d_t_male_sexual <- Fig4d_t %>% 
+  filter(!category == "Female_asexual")
+Fig4d_t_male_asexual <- Fig4d_t %>% 
+  filter(!category == "Female_sexual")
+```
+
+## * sample size
+```{r}
+summary_Fig4d <- Fig4d %>% 
+  group_by(category) %>% 
+  summarize(number = n())
+summary_Fig4d
+```
+
+## * statistical analysis
+### * comparison of survival in control group
+```{r}
+survdiff(Surv(event_time, status) ~ category, data = Fig4d_sexual_asexual)
+survdiff(Surv(event_time, status) ~ category, data = Fig4d_male_sexual)
+survdiff(Surv(event_time, status) ~ category, data = Fig4d_male_asexual)
+```
+
+### * comparison of survival in pathogen treatment group
+```{r}
+survdiff(Surv(event_time, status) ~ category, data = Fig4d_t_sexual_asexual)
+survdiff(Surv(event_time, status) ~ category, data = Fig4d_t_male_sexual)
+survdiff(Surv(event_time, status) ~ category, data = Fig4d_t_male_asexual)
+```
+
+## * figure
+```{r}
+survivfit <- survfit(Surv(event_time, status) ~ category, data = Fig4d)
+Fig_4d <- ggsurvplot(survivfit, xlim = c(0, 30), expand = FALSE)
+Fig_4d$plot <- Fig_4d$plot +
+  coord_cartesian(xlim = c(0, 30), expand = FALSE) +
+  theme(plot.margin = margin(5.5, 20, 5.5, 5.5))
+Fig_4d
+```
+
+# Number of young and old secondary queens
+```{r}
+# data loading
+FigS1b <- read_excel("Dataset.xlsx", sheet="weight of young and old SQs") %>% 
+  as.data.frame(.) %>% 
+  filter(caste == "SQ")
+SQ_190521I <- FigS1b %>% 
+  filter(colony == "190521I")
+SQ_180605L <- FigS1b %>% 
+  filter(colony == "180605L")
+```
+
+## * sample size
+```{r}
+summary_FigS1b <- FigS1b %>% 
+  group_by(colony) %>% 
+  summarize(number_of_SQ = n())
+summary_FigS1b
+```
+
+## * figure
+### * histgram of body weight of queens in 180605L
+```{r}
+width <- 0.5
+
+SQ_hist_180605L <-
+  ggplot(SQ_180605L, aes(x = body_weight)) + 
+  geom_histogram(boundary = 0, binwidth = width, closed ='left' , fill="black", color="white") +
+  scale_x_continuous(expand = c(0,0), breaks = seq(0, 100, by = 5), lim = c(0,31)) +
+  scale_y_continuous(expand = c(0,0), 
+                     breaks = seq(0, 100, by = 10), lim = c(0,35)
+                     ) +
+  labs(x = "SQ weight (mg)",
+       y = "Count", 
+       title ="") + 
+  theme_classic(base_family = "Helvetica")
+SQ_hist_180605L
+
+# save figure
+# ggsave(file = "Figure S1b_1.pdf", plot = SQ_hist_180605L, dpi = 300, width = 140, height = 89, units = c("mm"))
+```
+
+### * histgram of body weight of queens in 190521I
+```{r}
+SQ_hist_190521I <-
+  ggplot(SQ_190521I, aes(x = body_weight)) + 
+  geom_histogram(boundary = 0, binwidth = width, closed ='left' , fill="black", color="white") +
+  scale_x_continuous(expand = c(0,0), breaks = seq(0, 100, by = 5), lim = c(0,16)) +
+  scale_y_continuous(expand = c(0,0), 
+                     breaks = seq(0, 100, by = 10), lim = c(0,50)
+                     ) +
+  labs(x = "SQ weight (mg)",
+       y = "Count", 
+       title ="") + 
+  theme_classic(base_family = "Helvetica")
+SQ_hist_190521I
+
+# save figure
+# ggsave(file = "Figure S1b_2.pdf", plot = SQ_hist_190521I, dpi = 300, width = 140, height = 89, units = c("mm"))
+```
+
+
+# Proportion of male and female dealates in pre-foundation population
+```{r}
+FigS3a <- read_excel("Dataset.xlsx", sheet="genotype of alates") %>% 
+  as.data.frame(.) %>% 
+  filter(stage == "pre_founding")
+```
+
+## * sample size
+```{r}
+summary_FigS3a <- FigS3a %>% 
+  group_by(sex) %>% 
+  summarize(number = n())
+summary_FigS3a
+```
+
+## * figure
+```{r}
+Fig_S3a <-
+ggplot(summary_FigS3a, aes(x="", y=number, fill=sex)) +
+  geom_bar(width = 1, stat = "identity") + 
+  coord_polar("y", start=0)
+Fig_S3a
+
+# save figure
+# ggsave(file = "Figure S3a.pdf", plot = Fig_S3a, dpi = 300, width = 140, height = 89, units = c("mm"))
+```
+
+# Composition of founding units
+```{r}
+# data loading
+FigS3b <- read_excel("Dataset.xlsx", sheet="composition of founding units") %>% 
+  as.data.frame(.)
+```
+
+## * sample size
+```{r}
+summary_FigS3b <- FigS3b %>% 
+  summarize(sum = sum(number_of_colony))
+summary_FigS3b
+```
+
+## * figure
+```{r}
+FigS3b$combination <- factor(FigS3b$combination, levels=c("MMFF","MFFF","MMF","MFF","MM","MF","F","M"))
+
+Fig_S3b <-
+ggplot(FigS3b, aes(x="", y=number_of_colony, fill=combination)) +
+  geom_bar(width = 1, stat = "identity") + 
+  coord_polar("y", start=0)
+Fig_S3b
+
+# save figure
+# ggsave(file = "Figure S3b.pdf", plot = Fig_S3b, dpi = 300, width = 140, height = 89, units = c("mm"))
+```
+
+
+
+
+
+
+
+
+
