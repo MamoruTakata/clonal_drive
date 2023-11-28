@@ -7,26 +7,19 @@ output:
 
 # packages
 ```{r}
-install.packages("readxl")
-install.packages("ggplot2")
-install.packages("tidyverse")
-install.packages("dplyr")
-install.packages("lme4")
-install.packages("car")
-
-library(readxl)
-library(ggplot2)
-library(tidyverse)
-library(lme4)
-library(car)
-library(survival)
-library(scales)
-library(survminer)
+pacman::p_load(
+     readxl,
+     ggplot2,
+     tidyverse,
+     dplyr,
+     lme4,
+     car,
+     epitools)
 ```
 
 # Distribution of the number of secondary queens per colony
+## * data loading
 ```{r}
-# data loading
 Fig2a <- read_excel("Dataset.xlsx", sheet="no. of royals") %>% 
   as.data.frame(.)
 ```
@@ -83,8 +76,8 @@ Fig_2a
 ```
 
 # Relationship between total weight of secondary queens in a colony and the number of clone types
+## * data loading
 ```{r}
-# data loading
 Fig2bc <- read_excel("Dataset.xlsx", sheet="no. of clones in SQ population") %>% 
   as.data.frame(.)
 ```
@@ -100,8 +93,8 @@ summary_Fig2bc
 ## * statistical analysis
 ### * comparison of number of clones between colonies with and without PQ
 ```{r}
-model_cdq1 <- glmer(cbind(no_of_clone_types,no_secondary_queens_genotyped-no_of_clone_types) ~ as.factor(no_of_primary_queen) + (1|colony), family = binomial, Fig2bc)
-model_cdq2 <- glmer(cbind(no_of_clone_types,no_secondary_queens_genotyped-no_of_clone_types) ~ 1 + (1|colony), family = binomial, Fig2bc)
+model_cdq1 <- glmer(cbind(no_of_clone_types,no_of_secondary_queens_genotyped-no_of_clone_types) ~ as.factor(no_of_primary_queen) + (1|colony), family = binomial, Fig2bc)
+model_cdq2 <- glmer(cbind(no_of_clone_types,no_of_secondary_queens_genotyped-no_of_clone_types) ~ 1 + (1|colony), family = binomial, Fig2bc)
 summary(model_cdq1)
 Anova(model_cdq1)
 anova(model_cdq1, model_cdq2, test="Chi")
@@ -109,8 +102,8 @@ anova(model_cdq1, model_cdq2, test="Chi")
 
 ### * relationship between colony size and number of clones in SQ population
 ```{r}
-model_cd1 <- glmer(cbind(no_of_clone_types,no_secondary_queens_genotyped-no_of_clone_types) ~ total_weight_of_queen + (1|colony), family = binomial, Fig2bc)
-model_cd2 <- glmer(cbind(no_of_clone_types,no_secondary_queens_genotyped-no_of_clone_types) ~ 1 + (1|colony), family = binomial, Fig2bc)
+model_cd1 <- glmer(cbind(no_of_clone_types,no_of_secondary_queens_genotyped-no_of_clone_types) ~ total_weight_of_queen + (1|colony), family = binomial, Fig2bc)
+model_cd2 <- glmer(cbind(no_of_clone_types,no_of_secondary_queens_genotyped-no_of_clone_types) ~ 1 + (1|colony), family = binomial, Fig2bc)
 summary(model_cd1)
 Anova(model_cd1)
 anova(model_cd1, model_cd2, test="Chi")
@@ -153,8 +146,8 @@ Fig_2b
 ## * statistical analysis
 ### * comparison of the proportion of the most dominant clone between colonies with and without PQ
 ```{r}
-model_cdq1 <- glmer(cbind(no_of_individuals_of_the_most_dominate_clone_type,no_secondary_queens_genotyped-no_of_individuals_of_the_most_dominate_clone_type) ~ total_weight_of_queen + (1|colony), family = binomial, Fig2bc)
-model_cdq2 <- glmer(cbind(no_of_individuals_of_the_most_dominate_clone_type,no_secondary_queens_genotyped-no_of_individuals_of_the_most_dominate_clone_type) ~ 1 + (1|colony), family = binomial, Fig2bc)
+model_cdq1 <- glmer(cbind(no_of_individuals_of_the_most_dominate_clone_type,no_of_secondary_queens_genotyped-no_of_individuals_of_the_most_dominate_clone_type) ~ total_weight_of_queen + (1|colony), family = binomial, Fig2bc)
+model_cdq2 <- glmer(cbind(no_of_individuals_of_the_most_dominate_clone_type,no_of_secondary_queens_genotyped-no_of_individuals_of_the_most_dominate_clone_type) ~ 1 + (1|colony), family = binomial, Fig2bc)
 summary(model_cdq1)
 Anova(model_cdq1)
 anova(model_cdq1, model_cdq2, test="Chi")
@@ -162,8 +155,8 @@ anova(model_cdq1, model_cdq2, test="Chi")
 
 ### * relationship between colony size and the proportion of the most dominant clone in SQ population
 ```{r}
-model_cd1 <- glmer(cbind(no_of_individuals_of_the_most_dominate_clone_type,no_secondary_queens_genotyped-no_of_individuals_of_the_most_dominate_clone_type) ~ total_weight_of_queen + (1|colony), family = binomial, Fig2bc)
-model_cd2 <- glmer(cbind(no_of_individuals_of_the_most_dominate_clone_type,no_secondary_queens_genotyped-no_of_individuals_of_the_most_dominate_clone_type) ~ 1 + (1|colony), family = binomial, Fig2bc)
+model_cd1 <- glmer(cbind(no_of_individuals_of_the_most_dominate_clone_type,no_of_secondary_queens_genotyped-no_of_individuals_of_the_most_dominate_clone_type) ~ total_weight_of_queen + (1|colony), family = binomial, Fig2bc)
+model_cd2 <- glmer(cbind(no_of_individuals_of_the_most_dominate_clone_type,no_of_secondary_queens_genotyped-no_of_individuals_of_the_most_dominate_clone_type) ~ 1 + (1|colony), family = binomial, Fig2bc)
 summary(model_cd1)
 Anova(model_cd1)
 anova(model_cd1, model_cd2, test="Chi")
@@ -205,9 +198,215 @@ Fig_2c
 # ggsave(file = "Figure 2c.pdf", plot = Fig_2c, dpi = 300, width = 140, height = 89, units = c("mm"))
 ```
 
-# Heterozygosity of Males and females of pre-founding population
+# Comparizon of allele frequencies between driven and non-dvien colonies
+## * data loading
+## * Fisher's exact test
+### * Rf24_2
 ```{r}
-# loading data
+freq_raw <- read_excel("Dataset.xlsx", sheet="alleles found in a colony") %>%
+  as.data.frame(.) %>% 
+  mutate(dominance_level = round(no_of_individuals_of_the_most_dominate_clone_type/no_secondary_queens_genotyped),2)
+freq_n <- freq_raw %>% 
+  filter(drive_level == "non_driven") %>% 
+  separate(Rf24_2, sep = "/", c("Rf24_2", "Rf24_2_2")) %>% 
+  separate(Rf6_1, sep = "/", c("Rf6_1", "Rf6_1_2")) %>% 
+  separate(Rf21_1, sep = "/", c("Rf21_1", "Rf21_1_2")) %>% 
+  separate(Rs15, sep = "/", c("Rs15", "Rs15_2")) %>% 
+  separate(Rs10, sep = "/", c("Rs10", "Rs10_2")) %>% 
+  separate(Rs78, sep = "/", c("Rs78", "Rs78_2")) %>% 
+  separate(Rs68, sep = "/", c("Rs68", "Rs68_2")) %>% 
+  separate(Rs02, sep = "/", c("Rs02", "Rs02_2"))
+freq_n1 <- freq_n %>% 
+  dplyr::select(colony,drive_level,Rf24_2,Rf6_1,Rf21_1,Rs15,Rs10,Rs78,Rs68,Rs02)
+freq_n2 <- freq_n %>% 
+  dplyr::select(colony,drive_level,Rf24_2_2,Rf6_1_2,Rf21_1_2,Rs15_2,Rs10_2,Rs78_2,Rs68_2,Rs02_2) %>% 
+  rename(Rf24_2 = Rf24_2_2) %>% 
+  rename(Rf6_1 = Rf6_1_2) %>% 
+  rename(Rf21_1 = Rf21_1_2) %>% 
+  rename(Rs15 = Rs15_2) %>% 
+  rename(Rs10 = Rs10_2) %>% 
+  rename(Rs78 = Rs78_2) %>% 
+  rename(Rs68 = Rs68_2) %>% 
+  rename(Rs02 = Rs02_2)
+freq_dominance_level <- freq_raw %>% 
+  dplyr::select(colony,dominance_level)
+freq <- freq_raw %>% 
+  filter(drive_level == "driven") %>% 
+  dplyr::select(colony,drive_level,Rf24_2,Rf6_1,Rf21_1,Rs15,Rs10,Rs78,Rs68,Rs02) %>% 
+  rbind(.,freq_n1) %>% 
+  rbind(.,freq_n2) %>% 
+  left_join(freq_dominance_level)
+
+Rf24_2 <- freq %>%
+  dplyr::select(colony, drive_level, Rf24_2)
+Rf24_2_dominant <- Rf24_2 %>% 
+  filter(drive_level == "driven") %>% 
+  group_by(Rf24_2) %>% 
+  summarize(number = n()) %>% 
+  mutate(drived_allele = dense_rank(-number)) %>% 
+  filter(drived_allele == "1") %>% 
+  dplyr::select(Rf24_2, drived_allele)
+
+Rf24_2 <- Rf24_2 %>% 
+  left_join(Rf24_2_dominant) %>% 
+  replace_na(list(drived_allele = 0))
+
+cross_table_Rf24_2 <- table(Rf24_2$drive_level, Rf24_2$drived_allele)
+
+fisher.test(cross_table_Rf24_2)
+```
+
+### * Rf6_1
+```{r}
+Rf6_1 <- freq %>%
+  dplyr::select(colony, drive_level, Rf6_1)
+Rf6_1_dominant <- Rf6_1 %>% 
+  filter(drive_level == "driven") %>% 
+  group_by(Rf6_1) %>% 
+  summarize(number = n()) %>% 
+  mutate(drived_allele = dense_rank(-number)) %>% 
+  filter(drived_allele == "1") %>% 
+  dplyr::select(Rf6_1, drived_allele)
+
+Rf6_1 <- Rf6_1 %>% 
+  left_join(Rf6_1_dominant) %>% 
+  replace_na(list(drived_allele = 0))
+
+cross_table_Rf6_1 <- table(Rf6_1$drive_level, Rf6_1$drived_allele)
+
+fisher.test(cross_table_Rf6_1)
+```
+
+### * Rf21_1
+```{r}
+Rf21_1 <- freq %>%
+  dplyr::select(colony, drive_level, Rf21_1)
+Rf21_1_dominant <- Rf21_1 %>% 
+  filter(drive_level == "driven") %>% 
+  group_by(Rf21_1) %>% 
+  summarize(number = n()) %>% 
+  mutate(drived_allele = dense_rank(-number)) %>% 
+  filter(drived_allele == "1") %>% 
+  dplyr::select(Rf21_1, drived_allele)
+
+Rf21_1 <- Rf21_1 %>% 
+  left_join(Rf21_1_dominant) %>% 
+  replace_na(list(drived_allele = 0))
+
+cross_table_Rf21_1 <- table(Rf21_1$drive_level, Rf21_1$drived_allele)
+
+fisher.test(cross_table_Rf21_1)
+```
+
+### * Rs15
+```{r}
+Rs15 <- freq %>%
+  dplyr::select(colony, drive_level, Rs15)
+Rs15_dominant <- Rs15 %>% 
+  filter(drive_level == "driven") %>% 
+  group_by(Rs15) %>% 
+  summarize(number = n()) %>% 
+  mutate(drived_allele = dense_rank(-number)) %>% 
+  filter(drived_allele == "1") %>% 
+  dplyr::select(Rs15, drived_allele)
+
+Rs15 <- Rs15 %>% 
+  left_join(Rs15_dominant) %>% 
+  replace_na(list(drived_allele = 0))
+
+cross_table_Rs15 <- table(Rs15$drive_level, Rs15$drived_allele)
+
+fisher.test(cross_table_Rs15)
+```
+
+### * Rs10
+```{r}
+Rs10 <- freq %>%
+  dplyr::select(colony, drive_level, Rs10)
+Rs10_dominant <- Rs10 %>% 
+  filter(drive_level == "driven") %>% 
+  group_by(Rs10) %>% 
+  summarize(number = n()) %>% 
+  mutate(drived_allele = dense_rank(-number)) %>% 
+  filter(drived_allele == "1") %>% 
+  dplyr::select(Rs10, drived_allele)
+
+Rs10 <- Rs10 %>% 
+  left_join(Rs10_dominant) %>% 
+  replace_na(list(drived_allele = 0))
+
+cross_table_Rs10 <- table(Rs10$drive_level, Rs10$drived_allele)
+
+fisher.test(cross_table_Rs10)
+```
+
+### * Rs78
+```{r}
+Rs78 <- freq %>%
+  dplyr::select(colony, drive_level, Rs78)
+Rs78_dominant <- Rs78 %>% 
+  filter(drive_level == "driven") %>% 
+  group_by(Rs78) %>% 
+  summarize(number = n()) %>% 
+  mutate(drived_allele = dense_rank(-number)) %>% 
+  filter(drived_allele == "1") %>% 
+  dplyr::select(Rs78, drived_allele)
+
+Rs78 <- Rs78 %>% 
+  left_join(Rs78_dominant) %>% 
+  replace_na(list(drived_allele = 0))
+
+cross_table_Rs78 <- table(Rs78$drive_level, Rs78$drived_allele)
+
+fisher.test(cross_table_Rs78)
+```
+
+### * Rs68
+```{r}
+Rs68 <- freq %>%
+  dplyr::select(colony, drive_level, Rs68)
+Rs68_dominant <- Rs68 %>% 
+  filter(drive_level == "driven") %>% 
+  group_by(Rs68) %>% 
+  summarize(number = n()) %>% 
+  mutate(drived_allele = dense_rank(-number)) %>% 
+  filter(drived_allele == "1") %>% 
+  dplyr::select(Rs68, drived_allele)
+
+Rs68 <- Rs68 %>% 
+  left_join(Rs68_dominant) %>% 
+  replace_na(list(drived_allele = 0))
+
+cross_table_Rs68 <- table(Rs68$drive_level, Rs68$drived_allele)
+
+fisher.test(cross_table_Rs68)
+```
+
+### * Rs02
+```{r}
+Rs02 <- freq %>%
+  dplyr::select(colony, drive_level, Rs02)
+Rs02_dominant <- Rs02 %>% 
+  filter(drive_level == "driven") %>% 
+  group_by(Rs02) %>% 
+  summarize(number = n()) %>% 
+  mutate(drived_allele = dense_rank(-number)) %>% 
+  filter(drived_allele == "1") %>% 
+  dplyr::select(Rs02, drived_allele)
+
+Rs02 <- Rs02 %>% 
+  left_join(Rs02_dominant) %>% 
+  replace_na(list(drived_allele = 0))
+
+cross_table_Rs02 <- table(Rs02$drive_level, Rs02$drived_allele)
+
+fisher.test(cross_table_Rs02)
+```
+
+
+# Heterozygosity of males and females of pre-founding population
+## * data loading
+```{r}
 Fig3 <- read_excel("Dataset.xlsx", sheet="genotype of alates") %>% 
   as.data.frame(.) 
 Fig3a <- Fig3 %>% 
@@ -304,9 +503,9 @@ Fig_3a_female
 # ggsave(file = "Figure 3a female.pdf", plot = Fig_3a_female, dpi = 300, width = 140, height = 89, units = c("mm"))
 ```
 
-# Heterozygosity of Males and females of post-founding population
+# Heterozygosity of males and females of post-founding population
+## * data loading
 ```{r}
-# data loading
 Fig3b <- read_excel("Dataset.xlsx", sheet="genotype of alates") %>% 
   as.data.frame(.) %>% 
   filter(stage == "post_founding")
@@ -373,8 +572,8 @@ Fig_3b_female
 ```
 
 # Comparisons of head widths of pre- and post-foundation individuals for both sexes
+## * data loading
 ```{r}
-# data loading
 Fig4ab <- read_excel("Dataset.xlsx", sheet="genotype of alates") %>% 
   as.data.frame(.) %>% 
   mutate(category = paste(sex, stage, sep="_"))
@@ -382,6 +581,15 @@ Fig4ab_male <- Fig4ab %>%
   filter(sex == "Male")
 Fig4ab_female <- Fig4ab %>% 
   filter(sex == "Female")
+
+Fig4ab_male_pre <- Fig4ab_male %>%
+  filter(stage=="pre_founding")
+Fig4ab_male_post <- Fig4ab_male %>%
+  filter(stage=="post_founding")
+Fig4ab_female_pre <- Fig4ab_female %>%
+  filter(stage=="pre_founding")
+Fig4ab_female_post <- Fig4ab_female %>%
+  filter(stage=="post_founding")
 ```
 
 ## * sample size
@@ -404,20 +612,22 @@ chisq.test(c(43,72.7), p=c(1/2,1/2))
 
 ### * comparison of head width between pre- and post-foundation population in males
 ```{r}
-model_hm1 <- glm(head_width ~ stage, family = gaussian, Fig4ab_male)
-model_hm2 <- glm(head_width ~ 1, family = gaussian, Fig4ab_male)
-summary(model_hm1)
-Anova(model_hm1)
-anova(model_hm1, model_hm2, test="Chi")
+# Shapiro-Wilk test
+shapiro.test(Fig4ab_male_pre$head_width)
+shapiro.test(Fig4ab_male_post$head_width)
+
+# t test
+t.test(head_width ~ stage, Fig4ab_male)
 ```
 
 ### * comparison of head width between pre- and post-foundation population in females
 ```{r}
-model_hf1 <- glm(head_width ~ stage, family = gaussian, Fig4ab_female)
-model_hf2 <- glm(head_width ~ 1, family = gaussian, Fig4ab_female)
-summary(model_hf1)
-Anova(model_hf1)
-anova(model_hf1, model_hf2, test="Chi")
+# Shapiro-Wilk test
+shapiro.test(Fig4ab_female_pre$head_width)
+shapiro.test(Fig4ab_female_post$head_width)
+
+#  Wilcoxon signed-rank sum test
+wilcox.test(head_width ~ stage, correct=FALSE, Fig4ab_female)
 ```
 
 ## * figure
@@ -438,12 +648,47 @@ Fig_4a
 # ggsave(file = "Figure 4a.pdf", plot = Fig_4a, dpi = 300, width = 140, height = 89, units = c("mm"))
 ```
 
-# Comparisons of head widths between sexual and asexual females in pre-founding population
+# Comparisons of head widths between heterozygous and totally homozygous males in pre-founding population
+## * data loading
 ```{r}
-# data loading
+Fig4b_male <- Fig4ab_male_pre %>% 
+  mutate(het = if_else(heterozygosity > 0, "heterozygous", "homozygous"))
+
+Fig4b_male_hetero <- Fig4b_male %>% 
+  filter(het == "heterozygous")
+Fig4b_male_homo <- Fig4b_male %>% 
+  filter(het == "homozygous")
+```
+
+## * sample size
+```{r}
+summary_Fig4b_male <- Fig4b_male %>% 
+  group_by(het) %>% 
+  summarize(number = n())
+summary_Fig4b_male
+```
+
+## * statistical analysis
+```{r}
+# Shapiro-Wilk test
+shapiro.test(Fig4b_male_hetero$head_width)
+shapiro.test(Fig4b_male_homo$head_width)
+
+#  t-test
+t.test(head_width ~ het, Fig4b_male)
+```
+
+# Comparisons of head widths between sexual and asexual females in pre-founding population
+## * data loading
+```{r}
 Fig4b <- Fig4ab_female %>% 
   mutate(het = if_else(heterozygosity > 0, "sexual", "asexual")) %>% 
   filter(stage == "pre_founding")
+
+Fig4b_s <- Fig4b %>% 
+  filter(het == "sexual")
+Fig4b_a <- Fig4b %>% 
+  filter(het == "asexual")
 ```
 
 ## * sample size
@@ -456,11 +701,12 @@ summary_Fig4b
 
 ## * statistical analysis
 ```{r}
-model_hsa1 <- glm(head_width ~ het, family = gaussian, Fig4b)
-model_hsa2 <- glm(head_width ~ 1, family = gaussian, Fig4b)
-summary(model_hsa1)
-Anova(model_hsa1)
-anova(model_hsa1, model_hsa2, test="Chi")
+# Shapiro-Wilk test
+shapiro.test(Fig4b_s$head_width)
+shapiro.test(Fig4b_a$head_width)
+
+#  Wilcoxon signed-rank sum test
+wilcox.test(head_width ~ het, correct=FALSE, Fig4b)
 ```
 
 ## * figure
@@ -484,11 +730,36 @@ Fig_4b
 ```
 
 # Comparison of body weights between sexual and asexual alates collected from three natal colonies
+## * data loading
 ```{r}
-# data loading
 Fig4c <- read_excel("Dataset.xlsx", sheet="survivership of alates") %>% 
   as.data.frame(.) %>% 
   mutate(category = paste(colony, parthenogenesis, sep="_"))
+
+Fig4c$category <- factor(Fig4c$category, levels=c("A_sexual","A_asexual","B_sexual","B_asexual","C_sexual","C_asexual"))
+
+Fig4c_female <- Fig4c %>% 
+  filter(sex == "Female")
+Fig4c_female_ABC <- Fig4c_female %>% 
+  filter(str_detect(colony, "A|B|C"))
+Fig4c_female_A <- Fig4c_female %>% 
+  filter(colony == "A")
+Fig4c_female_A_s <- Fig4c_female_A %>% 
+  filter(parthenogenesis == "sexual")
+Fig4c_female_A_a <- Fig4c_female_A %>% 
+  filter(parthenogenesis == "asexual")
+Fig4c_female_B <- Fig4c_female %>% 
+  filter(colony == "B")
+Fig4c_female_B_s <- Fig4c_female_B %>% 
+  filter(parthenogenesis == "sexual")
+Fig4c_female_B_a <- Fig4c_female_B %>% 
+  filter(parthenogenesis == "asexual")
+Fig4c_female_C <- Fig4c_female %>% 
+  filter(colony == "C")
+Fig4c_female_C_s <- Fig4c_female_C %>% 
+  filter(parthenogenesis == "sexual")
+Fig4c_female_C_a <- Fig4c_female_C %>% 
+  filter(parthenogenesis == "asexual")
 ```
 
 ## * sample size
@@ -500,57 +771,38 @@ summary_Fig4c
 ```
 
 ## * statistical analysis
-### * comparison of body weights between sexual and asexual alates (whole data)
-```{r}
-model_bww1 <- glmer(weight ~ parthenogenesis + (1|colony), family = gaussian, Fig4c_female_ABC)
-model_bww2 <- glmer(weight ~ 1 + (1|colony), family = gaussian, Fig4c_female_ABC)
-summary(model_bww1)
-Anova(model_bww1)
-anova(model_bww1, model_bww2, test="Chi")
-```
-
 ### * comparison of body weights between sexual and asexual alates in colony A
 ```{r}
-model_bwa1 <- glm(weight ~ parthenogenesis, family = gaussian, Fig4c_female_A)
-model_bwa2 <- glm(weight ~ 1, family = gaussian, Fig4c_female_A)
-summary(model_bwa1)
-Anova(model_bwa1)
-anova(model_bwa1, model_bwa2, test="Chi")
+# Shapiro-Wilk test
+shapiro.test(Fig4c_female_A_a$weight)
+shapiro.test(Fig4c_female_A_s$weight)
+
+# t test
+t.test(weight ~ parthenogenesis, Fig4c_female_A)
 ```
 
 ### * comparison of body weights between sexual and asexual alates in colony B
 ```{r}
-model_bwb1 <- glm(weight ~ parthenogenesis, family = gaussian, Fig4c_female_B)
-model_bwb2 <- glm(weight ~ 1, family = gaussian, Fig4c_female_B)
-summary(model_bwb1)
-Anova(model_bwb1)
-anova(model_bwb1, model_bwb2, test="Chi")
+# Shapiro-Wilk test
+shapiro.test(Fig4c_female_B_a$weight)
+shapiro.test(Fig4c_female_B_s$weight)
+
+#  t-test
+t.test(weight ~ parthenogenesis, Fig4c_female_B)
 ```
 
 ### * comparison of body weights between sexual and asexual alates in colony C
 ```{r}
-model_bwc1 <- glm(weight ~ parthenogenesis, family = gaussian, Fig4c_female_C)
-model_bwc2 <- glm(weight ~ 1, family = gaussian, Fig4c_female_C)
-summary(model_bwc1)
-Anova(model_bwc1)
-anova(model_bwc1, model_bwc2, test="Chi")
+# Shapiro-Wilk test
+shapiro.test(Fig4c_female_C_a$weight)
+shapiro.test(Fig4c_female_C_s$weight)
+
+#  t-test
+t.test(weight ~ parthenogenesis, Fig4c_female_C)
 ```
 
 ## * figure
 ```{r}
-Fig4c$category <- factor(Fig4c$category, levels=c("A_sexual","A_asexual","B_sexual","B_asexual","C_sexual","C_asexual"))
-
-Fig4c_female <- Fig4c %>% 
-  filter(sex == "Female")
-Fig4c_female_ABC <- Fig4c_female %>% 
-  filter(str_detect(colony, "A|B|C"))
-Fig4c_female_A <- Fig4c_female %>% 
-  filter(colony == "A")
-Fig4c_female_B <- Fig4c_female %>% 
-  filter(colony == "B")
-Fig4c_female_C <- Fig4c_female %>% 
-  filter(colony == "C")
-
 Fig_4c <-
 ggplot(Fig4c_female_ABC, aes(y = weight, x = factor(category))) + 
   geom_boxplot(width=0.6) + 
@@ -744,12 +996,3 @@ Fig_S3b
 # save figure
 # ggsave(file = "Figure S3b.pdf", plot = Fig_S3b, dpi = 300, width = 140, height = 89, units = c("mm"))
 ```
-
-
-
-
-
-
-
-
-
