@@ -7,20 +7,25 @@ output:
 
 # packages
 ```{r}
+install.packages("pacman")
 pacman::p_load(
      readxl,
      ggplot2,
      tidyverse,
      dplyr,
+     stringr,
      lme4,
      car,
-     epitools)
+     epitools,
+     survival,
+     survminer,
+     scales)
 ```
 
 # Distribution of the number of secondary queens per colony
 ## * data loading
 ```{r}
-Fig2a <- read_excel("Dataset.xlsx", sheet="no. of royals") %>% 
+Fig2a <- read_excel("Dataset S1.xlsx", sheet="no. of royals") %>% 
   as.data.frame(.)
 ```
 
@@ -78,7 +83,7 @@ Fig_2a
 # Relationship between total weight of secondary queens in a colony and the number of clone types
 ## * data loading
 ```{r}
-Fig2bc <- read_excel("Dataset.xlsx", sheet="no. of clones in SQ population") %>% 
+Fig2bc <- read_excel("Dataset S1.xlsx", sheet="no. of clones in SQ population") %>% 
   as.data.frame(.)
 ```
 
@@ -176,18 +181,17 @@ Fig_2c <-
   scale_y_continuous(breaks=seq(0,1,by=0.25),limits=c(0,1.1),expand=c(0,0)) +
   scale_x_continuous(breaks=seq(0,3000,by=200),limits=c(0,1100),expand=c(0,0)) +
   theme_classic() +
-  theme(#legend.position = c(1, 1), #レジェンド(横についてるやつ)を上詰め(1)、右詰め(1)にする "bottom"
-        legend.justification = c(1, 1),　#レジェンドをちょっと内側に
-        legend.text = element_text(size=8), #レジェンドの内容の文字サイズを変更
-        legend.title = element_text(size=8), #レジェンドのタイトルサイズを変更
-        axis.title.x = element_text(size=8), #x軸タイトルを上詰め(0)、黒色、サイズ１４で
-        axis.title.y = element_text(vjust = 0.5,angle=90,size=8), #vjustで上下の位置調整、英語の場合はangle = 90で
-        axis.text.x = element_text(size=8,color="black"), #x軸の目盛りに対応した文字サイズを12で
+  theme(legend.justification = c(1, 1),　
+        legend.text = element_text(size=8), 
+        legend.title = element_text(size=8), 
+        axis.title.x = element_text(size=8), 
+        axis.title.y = element_text(vjust = 0.5,angle=90,size=8), 
+        axis.text.x = element_text(size=8,color="black"), 
         axis.text.y = element_text(size=8,color="black"),
-        axis.ticks.x = element_line(size = 0.5), #x軸の目盛り線をゼロにして消す
-        axis.line = element_line(size = 0.5, #軸の線を0.5の太さで
-                                linetype = "solid", #線のタイプは実線
-                                lineend = "round") #軸の線の終わりは整数値で丸める
+        axis.ticks.x = element_line(size = 0.5), 
+        axis.line = element_line(size = 0.5, 
+                                linetype = "solid", 
+                                lineend = "round") 
         ) +
   labs(y = "proportion of the most dominant clone group", 
        x = "total weight of queens (mg)",
@@ -198,45 +202,24 @@ Fig_2c
 # ggsave(file = "Figure 2c.pdf", plot = Fig_2c, dpi = 300, width = 140, height = 89, units = c("mm"))
 ```
 
+
 # Comparizon of allele frequencies between driven and non-dvien colonies
 ## * data loading
+```{r}
+df <- read_excel("Dataset S1.xlsx", sheet = "alleles in non-driven colonies")
+columns_to_process <- c("Rf24_2", "Rf6_1", "Rf21_1", "Rs15", "Rs10", "Rs78", "Rs68", "Rs02")
+df_expanded <- df %>%
+  separate_rows(all_of(columns_to_process), sep = "/")  %>%
+  mutate(across(all_of(columns_to_process), ~as.numeric(.)))
+
+freq <- read_excel("Dataset S1.xlsx", sheet = "alleles in dominated clones") %>% 
+  rbind(.,df_expanded) %>% 
+  mutate(dominance_level = ifelse(drive_level == "driven", 1, 0))
+```
+
 ## * Fisher's exact test
 ### * Rf24_2
 ```{r}
-freq_raw <- read_excel("Dataset.xlsx", sheet="alleles found in a colony") %>%
-  as.data.frame(.) %>% 
-  mutate(dominance_level = round(no_of_individuals_of_the_most_dominate_clone_type/no_secondary_queens_genotyped),2)
-freq_n <- freq_raw %>% 
-  filter(drive_level == "non_driven") %>% 
-  separate(Rf24_2, sep = "/", c("Rf24_2", "Rf24_2_2")) %>% 
-  separate(Rf6_1, sep = "/", c("Rf6_1", "Rf6_1_2")) %>% 
-  separate(Rf21_1, sep = "/", c("Rf21_1", "Rf21_1_2")) %>% 
-  separate(Rs15, sep = "/", c("Rs15", "Rs15_2")) %>% 
-  separate(Rs10, sep = "/", c("Rs10", "Rs10_2")) %>% 
-  separate(Rs78, sep = "/", c("Rs78", "Rs78_2")) %>% 
-  separate(Rs68, sep = "/", c("Rs68", "Rs68_2")) %>% 
-  separate(Rs02, sep = "/", c("Rs02", "Rs02_2"))
-freq_n1 <- freq_n %>% 
-  dplyr::select(colony,drive_level,Rf24_2,Rf6_1,Rf21_1,Rs15,Rs10,Rs78,Rs68,Rs02)
-freq_n2 <- freq_n %>% 
-  dplyr::select(colony,drive_level,Rf24_2_2,Rf6_1_2,Rf21_1_2,Rs15_2,Rs10_2,Rs78_2,Rs68_2,Rs02_2) %>% 
-  rename(Rf24_2 = Rf24_2_2) %>% 
-  rename(Rf6_1 = Rf6_1_2) %>% 
-  rename(Rf21_1 = Rf21_1_2) %>% 
-  rename(Rs15 = Rs15_2) %>% 
-  rename(Rs10 = Rs10_2) %>% 
-  rename(Rs78 = Rs78_2) %>% 
-  rename(Rs68 = Rs68_2) %>% 
-  rename(Rs02 = Rs02_2)
-freq_dominance_level <- freq_raw %>% 
-  dplyr::select(colony,dominance_level)
-freq <- freq_raw %>% 
-  filter(drive_level == "driven") %>% 
-  dplyr::select(colony,drive_level,Rf24_2,Rf6_1,Rf21_1,Rs15,Rs10,Rs78,Rs68,Rs02) %>% 
-  rbind(.,freq_n1) %>% 
-  rbind(.,freq_n2) %>% 
-  left_join(freq_dominance_level)
-
 Rf24_2 <- freq %>%
   dplyr::select(colony, drive_level, Rf24_2)
 Rf24_2_dominant <- Rf24_2 %>% 
@@ -403,11 +386,146 @@ cross_table_Rs02 <- table(Rs02$drive_level, Rs02$drived_allele)
 fisher.test(cross_table_Rs02)
 ```
 
+## * figure
+### * histgram of alleles at Rs15 in non-driven colonies
+```{r}
+list_Rs15 <- freq %>% 
+  group_by(Rs15) %>% 
+  summarize(count = n()) %>% 
+  dplyr::select(Rs15)
+
+summary_Rs15 <- freq %>% 
+  group_by(Rs15,drive_level) %>% 
+  summarize(count = n())
+
+summary_Rs15_non_driven1 <- summary_Rs15 %>% 
+  filter(drive_level == "non_driven")
+
+summary_Rs15_non_driven <- list_Rs15 %>% 
+  left_join(summary_Rs15_non_driven1) %>% 
+  mutate(drive_level = "non_driven") %>% 
+  replace_na(list(count = 0)) %>% 
+  mutate(Rs15 = as.numeric(Rs15)) %>% 
+  mutate(rank = row_number(Rs15)) %>% 
+  mutate(Rs15 = paste(rank,Rs15,sep="_"))
+
+Fig_2d_non_driven <- 
+  ggplot(summary_Rs15_non_driven, aes(y = count,
+                                        x = Rs15
+                                        )) +
+  geom_bar(stat = "identity", color="black") + 
+  scale_y_continuous(breaks=seq(0,100,by=5),limits=c(0,16)) + 
+  labs(y = "no. of alleles", 
+       x = "allele",
+       title ="alleles at Rs15 in non-driven colonies") +
+  theme_classic()
+Fig_2d_non_driven
+
+# save figure
+# ggsave(file = "Figure 2d non-driven.pdf", plot = Fig_2d_non_driven, dpi = 300, width = 140, height = 89, units = c("mm"))
+```
+
+### * histgram of alleles at Rs15 in driven colonies
+```{r}
+summary_Rs15_driven1 <- summary_Rs15 %>% 
+  filter(drive_level == "driven")
+
+summary_Rs15_driven <- list_Rs15 %>% 
+  left_join(summary_Rs15_driven1) %>% 
+  mutate(drive_level = "driven") %>% 
+  replace_na(list(count = 0)) %>% 
+  mutate(Rs15 = as.numeric(Rs15)) %>% 
+  mutate(rank = row_number(Rs15)) %>% 
+  mutate(Rs15 = paste(rank,Rs15,sep="_"))
+
+Fig_2d_driven <- 
+  ggplot(summary_Rs15_driven, aes(y = count,
+                                    x = Rs15
+                                    )) +
+  geom_bar(stat = "identity", color="black") + 
+  scale_y_continuous(breaks=seq(0,100,by=1),limits=c(0,4.2)) + 
+  labs(y = "no. of alleles", 
+       x = "allele",
+       title ="alleles at Rs15 in driven colonies") +
+  theme_classic()
+Fig_2d_driven
+
+# save figure
+# ggsave(file = "Figure 2d driven.pdf", plot = Fig_2d_driven, dpi = 300, width = 140, height = 89, units = c("mm"))
+```
+
+### * histgram of alleles at Rs68 in non-driven colonies
+```{r}
+list_Rs68 <- freq %>% 
+  group_by(Rs68) %>% 
+  summarize(count = n()) %>% 
+  dplyr::select(Rs68)
+
+summary_Rs68 <- freq %>% 
+  group_by(Rs68,drive_level) %>% 
+  summarize(count = n())
+
+summary_Rs68_non_driven1 <- summary_Rs68 %>% 
+  filter(drive_level == "non_driven")
+
+summary_Rs68_non_driven <- list_Rs68 %>% 
+  left_join(summary_Rs68_non_driven1) %>% 
+  mutate(drive_level = "non_driven") %>% 
+  replace_na(list(count = 0)) %>% 
+  mutate(Rs68 = as.numeric(Rs68)) %>% 
+  mutate(rank = row_number(Rs68)) %>% 
+  mutate(Rs68 = paste(rank,Rs68,sep="_"))
+
+Fig_2e_non_driven <- 
+  ggplot(summary_Rs68_non_driven, aes(y = count,
+                                        x = Rs68
+                                        )) +
+  geom_bar(stat = "identity", color="black") + 
+  scale_y_continuous(breaks=seq(0,100,by=5),limits=c(0,16)) + 
+  labs(y = "no. of alleles", 
+       x = "allele",
+       title ="alleles at Rs68 in non-driven colonies") +
+  theme_classic()
+Fig_2e_non_driven
+
+# save figure
+# ggsave(file = "Figure 2e non-driven.pdf", plot = Fig_2e_non_driven, dpi = 300, width = 140, height = 89, units = c("mm"))
+```
+
+### * histgram of alleles at Rs68 in driven colonies
+```{r}
+summary_Rs68_driven1 <- summary_Rs68 %>% 
+  filter(drive_level == "driven")
+
+summary_Rs68_driven <- list_Rs68 %>% 
+  left_join(summary_Rs68_driven1) %>% 
+  mutate(drive_level = "driven") %>% 
+  replace_na(list(count = 0)) %>% 
+  mutate(Rs68 = as.numeric(Rs68)) %>% 
+  mutate(rank = row_number(Rs68)) %>% 
+  mutate(Rs68 = paste(rank,Rs68,sep="_"))
+
+Fig_2e_driven <- 
+  ggplot(summary_Rs68_driven, aes(y = count,
+                                    x = Rs68
+                                    )) +
+  geom_bar(stat = "identity", color="black") + 
+  scale_y_continuous(breaks=seq(0,100,by=1),limits=c(0,2.2)) + 
+  labs(y = "no. of alleles", 
+       x = "allele",
+       title ="alleles at Rs68 in driven colonies") +
+  theme_classic()
+Fig_2e_driven
+
+# save figure
+# ggsave(file = "Figure 2e driven.pdf", plot = Fig_2e_driven, dpi = 300, width = 140, height = 89, units = c("mm"))
+```
+
 
 # Heterozygosity of males and females of pre-founding population
 ## * data loading
 ```{r}
-Fig3 <- read_excel("Dataset.xlsx", sheet="genotype of alates") %>% 
+Fig3 <- read_excel("Dataset S1.xlsx", sheet="genotype of alates") %>% 
   as.data.frame(.) 
 Fig3a <- Fig3 %>% 
   filter(stage == "pre_founding")
@@ -470,7 +588,7 @@ Fig_3a_male <-
                                  x = as.factor(heterozygosity)
                                  )) +
   geom_bar(stat = "identity", color="black") + 
-  scale_y_continuous(breaks=seq(0,100,by=10),limits=c(0,50)) + 
+  scale_y_continuous(breaks=seq(0,100,by=10),limits=c(0,51)) + 
   labs(y = "no. of individuals", 
        x = "heterozygosity",
        title ="males of pre-founding population") +
@@ -491,7 +609,7 @@ Fig_3a_female <-
                                    x = as.factor(heterozygosity)
                                    )) +
   geom_bar(stat = "identity", color="black") + 
-  scale_y_continuous(breaks=seq(0,100,by=10),limits=c(0,50)) + 
+  scale_y_continuous(breaks=seq(0,100,by=10),limits=c(0,51)) + 
   labs(y = "no. of individuals", 
        x = "heterozygosity",
        title ="females of pre-founding population") +
@@ -506,7 +624,7 @@ Fig_3a_female
 # Heterozygosity of males and females of post-founding population
 ## * data loading
 ```{r}
-Fig3b <- read_excel("Dataset.xlsx", sheet="genotype of alates") %>% 
+Fig3b <- read_excel("Dataset S1.xlsx", sheet="genotype of alates") %>% 
   as.data.frame(.) %>% 
   filter(stage == "post_founding")
 Fig3b_male <- Fig3b %>% 
@@ -538,7 +656,7 @@ Fig_3b_male <-
                                  x = as.factor(heterozygosity)
                                  )) +
   geom_bar(stat = "identity", color="black") + 
-  scale_y_continuous(breaks=seq(0,100,by=10),limits=c(0,50)) + 
+  scale_y_continuous(breaks=seq(0,100,by=10),limits=c(0,51)) + 
   labs(y = "no. of individuals", 
        x = "heterozygosity",
        title ="males of pre-founding population") +
@@ -559,7 +677,7 @@ Fig_3b_female <-
                                    x = as.factor(heterozygosity)
                                    )) +
   geom_bar(stat = "identity", color="black") + 
-  scale_y_continuous(breaks=seq(0,100,by=10),limits=c(0,50)) + 
+  scale_y_continuous(breaks=seq(0,100,by=10),limits=c(0,51)) + 
   labs(y = "no. of individuals", 
        x = "heterozygosity",
        title ="females of pre-founding population") +
@@ -574,7 +692,7 @@ Fig_3b_female
 # Comparisons of head widths of pre- and post-foundation individuals for both sexes
 ## * data loading
 ```{r}
-Fig4ab <- read_excel("Dataset.xlsx", sheet="genotype of alates") %>% 
+Fig4ab <- read_excel("Dataset S1.xlsx", sheet="genotype of alates") %>% 
   as.data.frame(.) %>% 
   mutate(category = paste(sex, stage, sep="_"))
 Fig4ab_male <- Fig4ab %>% 
@@ -732,7 +850,7 @@ Fig_4b
 # Comparison of body weights between sexual and asexual alates collected from three natal colonies
 ## * data loading
 ```{r}
-Fig4c <- read_excel("Dataset.xlsx", sheet="survivership of alates") %>% 
+Fig4c <- read_excel("Dataset S1.xlsx", sheet="survivership of alates") %>% 
   as.data.frame(.) %>% 
   mutate(category = paste(colony, parthenogenesis, sep="_"))
 
@@ -820,7 +938,7 @@ Fig_4c
 # Comparison of survival of males, sexual females, and asexual females
 ```{r}
 # data loading
-Fig4d <- read_excel("Dataset.xlsx", sheet="survivership of alates") %>% 
+Fig4d <- read_excel("Dataset S1.xlsx", sheet="survivership of alates") %>% 
   as.data.frame(.)
 Fig4d_male <- Fig4d %>% 
   filter(sex == "Male") %>%
@@ -836,6 +954,12 @@ Fig4d_male_sexual <- Fig4d %>%
   filter(!category == "Female_asexual")
 Fig4d_male_asexual <- Fig4d %>% 
   filter(!category == "Female_sexual")
+Fig4d_c_asexual <- Fig4d %>% 
+  filter(category == "Female_asexual")
+Fig4d_c_sexual <- Fig4d %>% 
+  filter(category == "Female_sexual")
+Fig4d_c_male <- Fig4d %>% 
+  filter(sex == "Male")
 
 Fig4d_t <- rbind(Fig4d_male, Fig4d_female) %>% 
   filter(treatment == "10^5")
@@ -845,6 +969,12 @@ Fig4d_t_male_sexual <- Fig4d_t %>%
   filter(!category == "Female_asexual")
 Fig4d_t_male_asexual <- Fig4d_t %>% 
   filter(!category == "Female_sexual")
+Fig4d_t_sexual <- Fig4d_t %>% 
+  filter(category == "Female_sexual")
+Fig4d_t_asexual <- Fig4d_t %>% 
+  filter(category == "Female_asexual")
+Fig4d_t_male <- Fig4d_t %>% 
+  filter(category == "Male")
 ```
 
 ## * sample size
@@ -863,6 +993,106 @@ survdiff(Surv(event_time, status) ~ category, data = Fig4d_male_sexual)
 survdiff(Surv(event_time, status) ~ category, data = Fig4d_male_asexual)
 ```
 
+### * bootstrap analysis
+```{r}
+if("lme4" %in% loadedNamespaces()) detach("package:lme4", unload=TRUE)
+if (!requireNamespace("survival", quietly = TRUE)) install.packages("survival")
+if (!requireNamespace("boot", quietly = TRUE)) install.packages("boot")
+
+library(survival)
+library(boot)
+
+surv_est <- function(data, indices) {
+  d <- data[indices, ]
+  fit <- survfit(Surv(event_time, status) ~ 1, data = d)
+  if (is.na(summary(fit)$table['median'])) { 
+    return(max(d$event_time)) 
+  } else {
+    return(summary(fit)$table['median']) 
+  }
+}
+
+# control treatment
+# asexual female
+boot_results <- boot(data = Fig4d_c_asexual, statistic = surv_est, R = 1000)
+
+if(!any(is.na(boot_results$t))) {
+  # percentile
+  boot_ci_perc <- boot.ci(boot_results, type = "perc")
+  print(boot_ci_perc)
+  
+  # normal
+  boot_ci_norm <- boot.ci(boot_results, type = "norm")
+  print(boot_ci_norm)
+}
+
+# sexual female
+boot_results <- boot(data = Fig4d_c_sexual, statistic = surv_est, R = 1000)
+
+if(!any(is.na(boot_results$t))) {
+  # percentile
+  boot_ci_perc <- boot.ci(boot_results, type = "perc")
+  print(boot_ci_perc)
+  
+  # normal
+  boot_ci_norm <- boot.ci(boot_results, type = "norm")
+  print(boot_ci_norm)
+}
+
+# male
+boot_results <- boot(data = Fig4d_c_male, statistic = surv_est, R = 1000)
+
+if(!any(is.na(boot_results$t))) {
+  # percentile
+  boot_ci_perc <- boot.ci(boot_results, type = "perc")
+  print(boot_ci_perc)
+  
+  # normal
+  boot_ci_norm <- boot.ci(boot_results, type = "norm")
+  print(boot_ci_norm)
+}
+
+
+# pathogen treatment
+boot_results <- boot(data = Fig4d_t_asexual, statistic = surv_est, R = 1000)
+
+if(!any(is.na(boot_results$t))) {
+  # percentile
+  boot_ci_perc <- boot.ci(boot_results, type = "perc")
+  print(boot_ci_perc)
+  
+  # normal
+  boot_ci_norm <- boot.ci(boot_results, type = "norm")
+  print(boot_ci_norm)
+}
+
+# sexual female
+boot_results <- boot(data = Fig4d_t_sexual, statistic = surv_est, R = 1000)
+
+if(!any(is.na(boot_results$t))) {
+  # percentile
+  boot_ci_perc <- boot.ci(boot_results, type = "perc")
+  print(boot_ci_perc)
+  
+  # normal
+  boot_ci_norm <- boot.ci(boot_results, type = "norm")
+  print(boot_ci_norm)
+}
+
+# male
+boot_results <- boot(data = Fig4d_t_male, statistic = surv_est, R = 1000)
+
+if(!any(is.na(boot_results$t))) {
+  # percentile
+  boot_ci_perc <- boot.ci(boot_results, type = "perc")
+  print(boot_ci_perc)
+  
+  # normal
+  boot_ci_norm <- boot.ci(boot_results, type = "norm")
+  print(boot_ci_norm)
+}
+```
+
 ### * comparison of survival in pathogen treatment group
 ```{r}
 survdiff(Surv(event_time, status) ~ category, data = Fig4d_t_sexual_asexual)
@@ -872,18 +1102,50 @@ survdiff(Surv(event_time, status) ~ category, data = Fig4d_t_male_asexual)
 
 ## * figure
 ```{r}
-survivfit <- survfit(Surv(event_time, status) ~ category, data = Fig4d)
-Fig_4d <- ggsurvplot(survivfit, xlim = c(0, 30), expand = FALSE)
-Fig_4d$plot <- Fig_4d$plot +
-  coord_cartesian(xlim = c(0, 30), expand = FALSE) +
-  theme(plot.margin = margin(5.5, 20, 5.5, 5.5))
-Fig_4d
+km_fit_sa <- survfit(Surv(event_time, status) ~ category, data = Fig4d_sexual_asexual)
+summary(km_fit_sa)
+
+palette <- c("gray", "red")
+
+Figure_Sx2 <- 
+  ggsurvplot(km_fit_sa,
+             data = Fig4d_sexual_asexual,
+             xlab = "Time",
+             ylab = "Survival probability",
+             break.time.by = 5,
+             pval = TRUE,
+             conf.int = TRUE,
+             palette = palette) # 正しいパレットを使用
+Figure_Sx2
+
+# save figure
+# ggsave(file = "Figure_Sx2.pdf", plot = Figure_Sx2$plot, dpi = 300, width = 140, height = 89, units = "mm")
+
+
+# km_fit <- survfit(Surv(event_time, status) ~ category, data = Fig4d)
+# 
+# summary(km_fit)
+# 
+# palette <- c("gray", "red", "blue")
+# 
+# Figure_Sx <- 
+#   ggsurvplot(km_fit,
+#              data = Fig4d,
+#              xlab = "Time",
+#              ylab = "Survival probability",
+#              break.time.by = 5,
+#              pval = TRUE,
+#              conf.int = TRUE,
+#              palette = palette) # 正しいパレットを使用
+# Figure_Sx
+# 
+# ggsave(file = "Figure_Sx1.pdf", plot = Figure_Sx$plot, dpi = 300, width = 140, height = 89, units = "mm")
 ```
 
 # Number of young and old secondary queens
 ```{r}
 # data loading
-FigS1b <- read_excel("Dataset.xlsx", sheet="weight of young and old SQs") %>% 
+FigS1b <- read_excel("Dataset S1.xlsx", sheet="weight of young and old SQs") %>% 
   as.data.frame(.) %>% 
   filter(caste == "SQ")
 SQ_190521I <- FigS1b %>% 
@@ -944,7 +1206,7 @@ SQ_hist_190521I
 
 # Proportion of male and female dealates in pre-foundation population
 ```{r}
-FigS3a <- read_excel("Dataset.xlsx", sheet="genotype of alates") %>% 
+FigS3a <- read_excel("Dataset S1.xlsx", sheet="genotype of alates") %>% 
   as.data.frame(.) %>% 
   filter(stage == "pre_founding")
 ```
@@ -972,7 +1234,7 @@ Fig_S3a
 # Composition of founding units
 ```{r}
 # data loading
-FigS3b <- read_excel("Dataset.xlsx", sheet="composition of founding units") %>% 
+FigS3b <- read_excel("Dataset S1.xlsx", sheet="composition of founding units") %>% 
   as.data.frame(.)
 ```
 
